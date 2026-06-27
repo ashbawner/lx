@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PC端扫码 - singledeviceDFTFA</title>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" defer></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #111c32;
+      --card-2: #18243c;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --line: rgba(148, 163, 184, 0.25);
+      --accent: #60a5fa;
+      --accent-strong: #2563eb;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(96, 165, 250, 0.24), transparent 34rem),
+        radial-gradient(circle at bottom right, rgba(37, 99, 235, 0.20), transparent 28rem),
+        var(--bg);
+    }
+    .page-shell {
+      width: min(1040px, calc(100vw - 32px));
+      min-height: 100vh;
+      margin: 0 auto;
+      display: grid;
+      place-items: center;
+      padding: 32px 0;
+    }
+    .hero-card,
+    .tool-card {
+      width: 100%;
+      background: linear-gradient(180deg, rgba(17, 28, 50, 0.96), rgba(15, 23, 42, 0.94));
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      padding: clamp(24px, 4vw, 48px);
+    }
+    .hero-card { max-width: 880px; }
+    .tool-card { max-width: 920px; }
+    .top-nav { margin-bottom: 18px; }
+    .top-nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 14px;
+    }
+    .top-nav a:hover { color: var(--text); }
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--accent);
+      font-size: 13px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(32px, 5vw, 56px);
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+    }
+    .lead {
+      margin: 18px 0 0;
+      max-width: 760px;
+      color: var(--muted);
+      line-height: 1.75;
+      font-size: 16px;
+    }
+    .choice-grid {
+      margin-top: 32px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+    .choice-card {
+      min-height: 220px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 24px;
+      border-radius: 22px;
+      background: rgba(24, 36, 60, 0.86);
+      border: 1px solid var(--line);
+      color: var(--text);
+      text-decoration: none;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+    }
+    .choice-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(96, 165, 250, 0.7);
+      background: rgba(30, 45, 76, 0.96);
+    }
+    .choice-icon { font-size: 42px; }
+    .choice-title { font-size: 24px; font-weight: 800; }
+    .choice-text { color: var(--muted); line-height: 1.65; }
+    .note {
+      margin: 24px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+    .scanner-frame {
+      position: relative;
+      margin-top: 28px;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: #020617;
+    }
+    .scanner-frame.wide { aspect-ratio: 16 / 9; }
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      background: #020617;
+    }
+    .scan-mask {
+      pointer-events: none;
+      position: absolute;
+      inset: 10%;
+      border: 2px solid rgba(96, 165, 250, 0.78);
+      border-radius: 20px;
+      box-shadow: 0 0 0 999px rgba(2, 6, 23, 0.20);
+    }
+    .controls {
+      margin-top: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    button {
+      border: 0;
+      border-radius: 14px;
+      padding: 13px 18px;
+      background: var(--accent-strong);
+      color: white;
+      font-weight: 750;
+      cursor: pointer;
+      min-width: 140px;
+    }
+    button.secondary {
+      background: rgba(148, 163, 184, 0.18);
+      color: var(--text);
+    }
+    button:disabled {
+      opacity: 0.48;
+      cursor: not-allowed;
+    }
+    .result-panel {
+      margin-top: 24px;
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(24, 36, 60, 0.58);
+      border: 1px solid var(--line);
+    }
+    label {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    textarea {
+      width: 100%;
+      min-height: 92px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      background: rgba(2, 6, 23, 0.54);
+      color: var(--text);
+      font: 15px/1.6 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      outline: none;
+    }
+    .status {
+      margin: 12px 0 14px;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+    .status[data-type="success"] { color: var(--success); }
+    .status[data-type="warning"] { color: var(--warning); }
+    .status[data-type="error"] { color: var(--error); }
+    @media (max-width: 720px) {
+      .page-shell { width: min(100% - 20px, 1040px); padding: 10px 0; }
+      .hero-card, .tool-card { border-radius: 22px; padding: 22px; }
+      .choice-grid { grid-template-columns: 1fr; }
+      .choice-card { min-height: 180px; }
+      .scanner-frame, .scanner-frame.wide { aspect-ratio: 3 / 4; }
+      button { width: 100%; }
+    }
+  </style>
+</head>
+<body data-mode="screen">
+  <main class="page-shell">
+    <section class="tool-card">
+      <nav class="top-nav"><a href="./index.html">返回首页</a></nav>
+      <p class="eyebrow">电脑识别模式</p>
+      <h1>LX电竞人脸认证</h1>
+      <p class="lead">点击"开始识别"后，选择<strong>整个屏幕</strong>即可捕获桌面、游戏窗口等任何画面。全屏模式下建议使用无边框窗口化。</p>
+      <div class="scanner-frame wide">
+        <video id="preview" playsinline muted></video>
+        <div class="scan-mask" aria-hidden="true"></div>
+      </div>
+      <div class="controls">
+        <button id="startBtn" type="button">开始识别</button>
+        <button id="stopBtn" type="button" class="secondary" disabled>结束识别</button>
+      </div>
+      <section class="result-panel" aria-live="polite">
+        <label for="resultText">识别结果</label>
+        <textarea id="resultText" readonly placeholder="识别成功后，内容会显示在这里。"></textarea>
+        <p id="statusText" class="status">准备就绪，点击"开始识别"。</p>
+        <div class="controls" style="margin-top:0;">
+          <button id="copyBtn" type="button" disabled>复制结果</button>
+          <button id="wechatBtn" type="button" class="secondary" disabled>发送到微信</button>
+        </div>
+      </section>
+      <canvas id="scanCanvas" hidden></canvas>
+    </section>
+  </main>
+  <script>
+    (() => {
+      const video = document.getElementById('preview');
+      const canvas = document.getElementById('scanCanvas');
+      const startBtn = document.getElementById('startBtn');
+      const stopBtn = document.getElementById('stopBtn');
+      const copyBtn = document.getElementById('copyBtn');
+      const wechatBtn = document.getElementById('wechatBtn');
+      const resultText = document.getElementById('resultText');
+      const statusText = document.getElementById('statusText');
+      if (!video || !canvas || !startBtn || !stopBtn || !copyBtn || !wechatBtn || !resultText || !statusText) return;
+
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      let activeStream = null;
+      let scanTimer = null;
+      let detector = null;
+      let scanning = false;
+      let lastDecodedValue = '';
+      let retryCount = 0;
+
+      function setStatus(message, type = '') {
+        statusText.textContent = message;
+        statusText.dataset.type = type;
+      }
+      function setControls(isScanning) {
+        startBtn.disabled = isScanning;
+        stopBtn.disabled = !isScanning;
+      }
+      function setResult(value) {
+        const normalized = value.trim();
+        if (!normalized || normalized === lastDecodedValue) return;
+        lastDecodedValue = normalized;
+        resultText.value = normalized;
+        copyBtn.disabled = false;
+        wechatBtn.disabled = false;
+        setStatus('识别成功，已自动复制！点击「发送到微信」粘贴发送。', 'success');
+        copyToClipboard(normalized);
+      }
+      async function copyToClipboard(text) {
+        try {
+          if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(text);
+          } else {
+            const temp = document.createElement('textarea');
+            temp.value = text;
+            temp.setAttribute('readonly', '');
+            temp.style.position = 'fixed';
+            temp.style.opacity = '0';
+            document.body.appendChild(temp);
+            temp.select();
+            document.execCommand('copy');
+            temp.remove();
+          }
+        } catch { /* 静默失败 */ }
+      }
+      function openWechat() {
+        const value = resultText.value.trim();
+        if (!value) return;
+        copyToClipboard(value);
+        setStatus('已复制！正在打开微信，请粘贴(Ctrl+V)发送给对方。', 'success');
+        window.open('weixin://', '_blank');
+      }
+
+      /* ====== QR 解码引擎 ====== */
+      async function initDetector() {
+        if ('BarcodeDetector' in window) {
+          try {
+            const supported = await BarcodeDetector.getSupportedFormats?.();
+            if (!supported || supported.includes('qr_code')) {
+              detector = new BarcodeDetector({ formats: ['qr_code'] });
+            }
+          } catch { detector = null; }
+        }
+      }
+      async function decodeWithNativeDetector() {
+        if (!detector) return null;
+        try {
+          const bitmap = await createImageBitmap(canvas);
+          const codes = await detector.detect(bitmap);
+          bitmap.close?.();
+          return (codes && codes.length > 0) ? (codes[0].rawValue || null) : null;
+        } catch { return null; }
+      }
+      function decodeWithJsQR(w, h) {
+        if (typeof window.jsQR !== 'function') return null;
+        const d = ctx.getImageData(0, 0, w, h);
+        const code = window.jsQR(d.data, w, h, { inversionAttempts: 'attemptBoth' });
+        return code?.data || null;
+      }
+      async function scanOnce() {
+        if (!scanning || !video.videoWidth || !video.videoHeight) return;
+        const w = video.videoWidth, h = video.videoHeight;
+        canvas.width = w; canvas.height = h;
+        ctx.drawImage(video, 0, 0, w, h);
+        const decoded = (await decodeWithNativeDetector()) || decodeWithJsQR(w, h);
+        if (decoded) setResult(decoded);
+      }
+      function startScanLoop() {
+        scanning = true;
+        const loop = async () => {
+          if (!scanning) return;
+          await scanOnce();
+          scanTimer = window.setTimeout(loop, 100);
+        };
+        loop();
+      }
+
+      /* ====== 屏幕捕获 —— 针对全屏游戏优化 ====== */
+      async function captureScreen(strategy) {
+        if (!navigator.mediaDevices?.getDisplayMedia) {
+          throw new Error('浏览器不支持屏幕共享，请使用 Chrome / Edge。');
+        }
+        // 策略 0: 优先捕获整个显示器（全屏游戏也能捕获）
+        // 策略 1: 移除 surfaceSwitching 兼容旧版浏览器
+        const configs = [
+          {
+            video: {
+              displaySurface: 'monitor',
+              cursor: 'never'
+            },
+            audio: false,
+            selfBrowserSurface: 'exclude',
+            surfaceSwitching: 'include',
+            systemAudio: 'exclude'
+          },
+          {
+            video: {
+              displaySurface: 'monitor',
+              cursor: 'never'
+            },
+            audio: false,
+            selfBrowserSurface: 'exclude',
+            systemAudio: 'exclude'
+          },
+          {
+            video: { cursor: 'never' },
+            audio: false
+          }
+        ];
+        const cfg = configs[strategy] || configs[2];
+        return navigator.mediaDevices.getDisplayMedia(cfg);
+      }
+
+      async function start() {
+        try {
+          setControls(true);
+          copyBtn.disabled = true;
+          wechatBtn.disabled = true;
+          resultText.value = '';
+          lastDecodedValue = '';
+          retryCount = 0;
+
+          setStatus('请在弹窗中选择「整个屏幕」进行捕获（全屏游戏也能识别）……', 'warning');
+          activeStream = await captureScreen(0);
+          video.srcObject = activeStream;
+          await video.play();
+
+          activeStream.getVideoTracks().forEach((track) => {
+            track.addEventListener('ended', () => {
+              if (scanning) {
+                setStatus('屏幕共享已中断，点击重新开始。', 'error');
+                stop();
+              }
+            });
+          });
+
+          setStatus('正在扫描二维码，请确保二维码在屏幕上可见……');
+          startScanLoop();
+        } catch (error) {
+          retryCount++;
+          if (retryCount <= 2) {
+            setStatus('捕获失败，正在尝试备用方案 (' + retryCount + '/2)……', 'warning');
+            try {
+              activeStream = await captureScreen(retryCount);
+              video.srcObject = activeStream;
+              await video.play();
+              activeStream.getVideoTracks().forEach((track) => {
+                track.addEventListener('ended', () => { stop(); });
+              });
+              setStatus('正在扫描二维码，请确保二维码在屏幕上可见……');
+              startScanLoop();
+              setControls(true);
+              return;
+            } catch (e2) {
+              stop();
+              setStatus('屏幕捕获失败。请确保在弹窗中选择了正确的屏幕/窗口后重试。', 'error');
+              return;
+            }
+          }
+          stop();
+          setStatus('屏幕捕获失败：' + (error?.message || '请重试'), 'error');
+        }
+      }
+
+      function stop() {
+        scanning = false;
+        if (scanTimer) { window.clearTimeout(scanTimer); scanTimer = null; }
+        if (activeStream) {
+          activeStream.getTracks().forEach((track) => track.stop());
+          activeStream = null;
+        }
+        if (video) video.srcObject = null;
+        setControls(false);
+        if (!resultText.value) setStatus('已停止识别，点击"开始识别"重新扫描。');
+      }
+
+      startBtn.addEventListener('click', start);
+      stopBtn.addEventListener('click', stop);
+      copyBtn.addEventListener('click', () => copyToClipboard(resultText.value.trim()));
+      wechatBtn.addEventListener('click', openWechat);
+      window.addEventListener('beforeunload', stop);
+      initDetector();
+    })();
+  </script>
+</body>
+</html>
